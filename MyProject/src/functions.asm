@@ -46,6 +46,8 @@ sort:
 	mov eax, [ebp + 16]; eax = inicio do arr
 	mov esi, [eax]
 	mov ecx, [ebp + 12] ; ecx = n
+	cmp ecx,1
+	je dont_sort
 	dec ecx ; ecx = n-1
 not_done:
 	mov edx,1
@@ -53,7 +55,7 @@ not_done:
 	mov ebx, [ebp + 8]
 	sort_nodes:
 		push edx
-		push ecx
+		
 		mov eax,[esi + ebx]
 		mov edx,[esi + ebx + 16]
 		
@@ -64,14 +66,13 @@ not_done:
 		push esi
 		push ebx
 		call swap_nodes
-		add esp,8
-		pop ecx
-		pop edx
+		add esp,12
+		
 		mov edx,0
 		jmp finished
 
 		dont_swap:
-		pop ecx
+		
 		pop edx
 
 		finished:
@@ -81,6 +82,7 @@ not_done:
 	pop ecx
 	cmp edx,0
 	je not_done
+dont_sort:
 	popad
 	pop ebp
 ret

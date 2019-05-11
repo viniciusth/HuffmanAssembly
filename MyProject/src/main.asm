@@ -10,7 +10,9 @@ segment .data
     debug_msg1 db "===== DEBUG ====", 0
     debug_msg2 db "AQUI",10, 0
     debug_msg3 db "Memory: ", 0
-	filename db "test.txt", 0
+	msg db "frequencia --- left --- right --- char",0
+	sep db "-------------",0
+	filename db "bigtest.txt", 0
   	buflen dw 2048
 	
 
@@ -149,66 +151,153 @@ print_vec:
 	add ebx,16
 	loop print_vec
 
+mov eax,msg
+call print_string
+call print_nl
 mov ebx,0
+
 build_huffman_tree:
-	
+	mov eax,[n]
+	call print_int
+	call print_nl
 	;cria no
 	call create_node
 	sub eax,12
 	mov ecx,[huffman_table]
-	mov edx,[ecx + ebx + 16]
-	mov [eax],edx
-	mov edx,[ecx + ebx + 20]
-	mov [eax + 4],edx
-	mov edx,[ecx + ebx + 24]
-	mov [eax + 8],edx
-	mov edx,[ecx + ebx + 28]
-	mov [eax + 12], edx ; new node == b
-
-	mov edx, [ecx + ebx]
-	add [ecx + ebx + 16],edx
-	mov edx, [huffman_table + ebx]	
-	mov [ecx + ebx + 20],edx
-	mov [ecx + ebx + 24],eax
-	mov dword [ecx + ebx + 28], 300
+	add ecx,ebx
 	
+;;;;;;;
+;cmp ebx,16
+;	jne sem_debug2
+;	mov eax,[ecx]
+;	call print_int
+;	call print_nl
+;leave
+;ret	
+;sem_debug2:
+	mov edx,[ecx + 16]
+
+	mov [eax],edx
+	
+	mov edx,[ecx + 20]
+	mov [eax + 4],edx
+	mov edx,[ecx + 24]
+	mov [eax + 8],edx
+	mov edx,[ecx + 28]
+	mov [eax + 12], edx ; new node == b
+;cmp ebx,16
+;jne sem_debug
+;quita:
+;leave
+;ret
+;sem_debug:
+;;;;;;;
+
+
+	mov edx, [ecx]
+	add [ecx + 16],edx
+
+	mov edx, ecx
+	
+	mov [ecx + 20],edx
+	mov [ecx + 24],eax
+	mov edx,300
+	mov [ecx + 28], edx
+	; printar os 3 nós utilizados nesse processo
+
+; nó criado
+	mov edx,eax
+	mov eax, [edx]
+	call print_int
+
+	mov al, ' '
+	call print_char
+
+	mov eax,[edx + 4]
+	call print_int
+	
+	mov al,' '
+	call print_char
+
+	mov eax,[edx + 8]
+	call print_int
+	
+	mov al,' '
+	call print_char
+	
+	mov eax,[edx + 12]
+	call print_int
+	call print_nl
+	
+
+; [huffman_table + ebx]
+		
+	mov eax, [ecx]
+	call print_int
+
+	mov al, ' '
+	call print_char
+
+	mov eax,[ecx + 4]
+	call print_int
+	
+	mov al,' '
+	call print_char
+
+	mov eax,[ecx + 8]
+	call print_int
+	
+	mov al,' '
+	call print_char
+	
+	mov eax,[ecx + 12]
+	call print_int
+	call print_nl
+
+; [huffman_table + ebx + 16]
+
+	mov eax, [ecx + 16]
+	call print_int
+
+	mov al, ' '
+	call print_char
+
+	mov eax,[ecx + 20]
+	call print_int
+	
+	mov al,' '
+	call print_char
+
+	mov eax,[ecx + 24]
+	call print_int
+	
+	mov al,' '
+	call print_char
+	
+	mov eax,[ecx + 28]
+
+	call print_int
+	call print_nl
+
+	mov eax,sep
+	call print_string
+	call print_nl
+
+	dec dword [n] 
+	add ebx,16
+
 	push huffman_table
 	push dword [n]
 	push ebx
 
 	call sort
-
 	add esp,12
-
-	;repete até n = 1
-	dec dword [n] 
-	mov eax,[n]
-	call print_int
-	mov al,' '
-	call print_char
-	mov eax, [ecx + ebx + 16]
-	call print_int
-	mov al,' '
-	call print_char
-	mov eax, [ecx + ebx + 20]
-	call print_int
-	call print_nl
-	add ebx,16
-
+	
 	cmp dword [n],1
 	jne build_huffman_tree
-	
-	mov eax, huffman_table
-	add eax,ebx
-	
-
-	mov [tree], eax
-	mov ecx,[tree]
-	mov eax,[ecx]
-	call print_int
-	call print_nl
-leave
-ret
+	mov ecx,[huffman_table]
+	add ecx,ebx
+	mov [tree],ecx
 	push tree
    	call print_pre_order
    	add esp, 4
