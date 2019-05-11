@@ -37,22 +37,20 @@ swap_nodes:
 	pop ebp
 ret
 
-;sort(*arr,size) Array of Nodes (16 bytes each node)
+;sort(*arr,size,headstart) Array of Nodes (16 bytes each node)
 sort:
 	push ebp
 	mov ebp,esp
 	pushad
 	
-	mov eax, [ebp + 12]; eax = inicio do arr
-	
+	mov eax, [ebp + 16]; eax = inicio do arr
 	mov esi, [eax]
-	mov ecx, [ebp + 8] ; ecx = n
+	mov ecx, [ebp + 12] ; ecx = n
 	dec ecx ; ecx = n-1
-
 not_done:
 	mov edx,1
 	push ecx
-	mov ebx, 0
+	mov ebx, [ebp + 8]
 	sort_nodes:
 		push edx
 		push ecx

@@ -61,7 +61,7 @@ print_table:
 	mov eax,ebx
 	cmp dword [freq_table + edx],0
 	je next_step
-	; elementos com no minimo 1 aparição
+	; elementos que aparecem no minimo 1 vez 
 	inc dword [n]; aumenta o tamanho do vetor
 	call print_char
 	mov al, '-'
@@ -94,9 +94,14 @@ loop print_table
     mov eax, 45     ; sys_brk
     int 80h
 	
+	mov ebx,16
+	imul ebx,[n]
+	sub ebx,4
+	sub eax,ebx	
+
 	mov dword [huffman_table], 0
-	mov [huffman_table], eax ; huffman_table aponta para inicio do vetor de node
-	
+	mov [huffman_table] , eax ; huffman_table aponta para inicio do vetor de node
+		
 
 	mov ecx,256	
 	mov ebx,0 ; position on huffman_table
@@ -126,9 +131,9 @@ next_iteration:
 
 	push huffman_table
 	push dword [n]
+	push dword 0
 	call sort
-	add esp,8
-
+	add esp,12
 
 mov ebx,0
 mov ecx,[n]
@@ -143,6 +148,71 @@ print_vec:
 	call print_nl
 	add ebx,16
 	loop print_vec
+
+mov ebx,0
+build_huffman_tree:
+	
+	;cria no
+	call create_node
+	sub eax,12
+	mov ecx,[huffman_table]
+	mov edx,[ecx + ebx + 16]
+	mov [eax],edx
+	mov edx,[ecx + ebx + 20]
+	mov [eax + 4],edx
+	mov edx,[ecx + ebx + 24]
+	mov [eax + 8],edx
+	mov edx,[ecx + ebx + 28]
+	mov [eax + 12], edx ; new node == b
+
+	mov edx, [ecx + ebx]
+	add [ecx + ebx + 16],edx
+	mov edx, [huffman_table + ebx]	
+	mov [ecx + ebx + 20],edx
+	mov [ecx + ebx + 24],eax
+	mov dword [ecx + ebx + 28], 300
+	
+	push huffman_table
+	push dword [n]
+	push ebx
+
+	call sort
+
+	add esp,12
+
+	;repete até n = 1
+	dec dword [n] 
+	mov eax,[n]
+	call print_int
+	mov al,' '
+	call print_char
+	mov eax, [ecx + ebx + 16]
+	call print_int
+	mov al,' '
+	call print_char
+	mov eax, [ecx + ebx + 20]
+	call print_int
+	call print_nl
+	add ebx,16
+
+	cmp dword [n],1
+	jne build_huffman_tree
+	
+	mov eax, huffman_table
+	add eax,ebx
+	
+
+	mov [tree], eax
+	mov ecx,[tree]
+	mov eax,[ecx]
+	call print_int
+	call print_nl
+leave
+ret
+	push tree
+   	call print_pre_order
+   	add esp, 4
+   	call print_nl
 leave
 ret
   ; exemplo de funcionamento da arvore

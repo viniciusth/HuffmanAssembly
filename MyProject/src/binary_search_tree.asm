@@ -186,15 +186,16 @@ print_pre_order:
             call print_int
             mov al, ':'
             call print_char
-            mov al, [edx - 12]
-            call print_char
+            mov eax, [edx + 12]
+            call print_int
             mov al,' '
             call print_char
             mov al, '-'
             call print_char
             mov al,' '
 			call print_char
-            sub edx, 8
+            add edx, 4
+
             push edx
             call print_pre_order
             add  esp, 4
