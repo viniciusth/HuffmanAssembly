@@ -3,7 +3,6 @@
 %include "src/binary_search_tree.asm"
 %include "src/read_write_file.asm"
 %include "src/functions.asm"
-%define asm_main _asm_main
 
 segment .data
   
