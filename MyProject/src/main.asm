@@ -12,33 +12,40 @@ segment .data
     debug_msg3 db "Memory: ", 0
 	msg db "frequencia --- left --- right --- char",0
 	sep db "-------------",0
-	filename db "bigtest.txt", 0
+	filename db "test.txt", 0
+	flname db "compressed", 0
   	buflen dw 2048
-	
+	buflen2 dd 2048
 
 	freq_table times 256 dd 0	
 	n dd 0
+	fldscp dd 0
+
 
 segment .bss
 
     tree resd 1
     num_nodes resd 1
 	buffer resb 2048
+	buffer2 resb 2048
 	huffman_table resd 1
+	treebuffer resb 16
+	encoding resd 256
 
 segment .text  
 
         global  asm_main
 asm_main:
-    
 
-	; build frequency table
+	;build frequency table
 	push filename
 	push buffer
 	push buflen
 	call read_file
 	add esp,12
-	
+	push eax
+	call close_file
+	add esp,4
 
 	mov esi,buffer
 	cld
@@ -297,13 +304,143 @@ build_huffman_tree:
 	jne build_huffman_tree
 	mov ecx,[huffman_table]
 	add ecx,ebx
-	mov [tree],ecx
+	mov [tree],ecx ; ree = raiz da arvore
+
+mov ecx,256
+mov ebx,0
+clear_encoding:
+mov dword [encoding+ebx],0
+add ebx,4
+loop clear_encoding
+    ;mov eax,[tree]
+   	;add eax,8
+   	;mov eax,[eax]
+   	;mov eax,[eax + 12]
+   	;call print_int
+   	;call print_nl
+   	;call print_nl
+
 	push tree
-   	call print_pre_order
-   	add esp, 4
-   	call print_nl
+	push treebuffer
+	push encoding
+	push dword 0
+   	call process_huffman_tree
+   	add esp, 16
+   	
+   	mov ecx,256
+   	mov ebx,0
+   	mov esi,0
+   	print_encoding:
+   		cmp dword [encoding + ebx],0
+   		je cont_print_encoding
+   		mov eax,esi
+   		call print_char
+   		mov al,' '
+   		call print_char 
+   		;cmp esi,'e'
+   		;je xx
+   		mov edx,[encoding + ebx]
+   		mov edi,edx
+   		mov edx,0
+   		print_char_encoding:
+   			cmp byte [edi + edx],0
+   			je end_print_char_encoding
+   			mov eax,[edi + edx]
+
+   			call print_char
+   			inc edx
+   			jmp print_char_encoding
+   			end_print_char_encoding:
+   			call print_nl
+
+   		cont_print_encoding:
+   		add ebx,4
+   		inc esi
+   	loop print_encoding
+
+mov ebx,0
+mov esi,buffer
+build_buffer:
+	lodsb
+		cmp al,0
+		je finish_buffer
+
+		imul eax,4
+
+		mov edx,[encoding + eax]
+		
+		mov eax,0
+		put_on_buffer:
+			cmp byte [edx + eax],0
+			je next_letter
+			mov ecx,[edx + eax]
+
+			mov [buffer2 + ebx],ecx
+
+			inc ebx
+			inc eax
+			jmp put_on_buffer
+	next_letter:
+	jmp build_buffer
+finish_buffer:
+
+mov ecx,0
+mov esi,buffer2
+print_buffer2:
+	lodsb
+		cmp al,0
+		je finish_print_buffer2
+		inc ecx
+		call print_char
+		jmp print_buffer2
+finish_print_buffer2:
+call print_nl
+mov eax,ecx
+call print_int
+call print_nl
+
+ mov eax,8
+ mov ebx, flname
+ mov ecx,700
+ int 80h
+
+ mov [fldscp],eax
+ mov eax,4
+ mov ebx,[fldscp]
+ mov ecx, buffer2
+ mov edx, buflen2
+ int 80h
+
+ mov eax,6
+ mov ebx,[fldscp]
+ int 80h
 leave
 ret
+   ;create the file
+   mov  eax, 8
+   mov  ebx, flname
+   mov  ecx, 0777        ;read, write and execute by all
+   int  0x80             ;call kernel
+
+   mov [fldscp], eax
+    
+   ; write into the file
+   mov	edx, buflen2          ;number of bytes
+   mov	ecx, buffer2         ;message to write
+   mov	ebx, [fldscp]    ;file descriptor 
+   mov	eax,4            ;system call number (sys_write)
+   int	0x80             ;call kernel
+	
+   ; close the file
+   mov eax, 6
+   mov ebx, [fldscp]
+    
+
+
+
+leave
+ret
+
   ; exemplo de funcionamento da arvore
     push tree
     push num_nodes
@@ -353,7 +490,7 @@ ret
     ;call print_int
 
    push tree
-   call print_pre_order
+   call process_huffman_tree
    add esp, 4
    call print_nl
    
