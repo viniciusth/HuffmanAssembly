@@ -12,10 +12,10 @@ segment .data
     debug_msg3 db "Memory: ", 0
 	msg db "frequencia --- left --- right --- char",0
 	sep db "-------------",0
-	filename db "test.txt", 0
-	flname db "compressed", 0
+	filename db "bigtest.txt", 0
+	flname db "compressed.txt", 0
   	buflen dw 2048
-	buflen2 dd 2048
+	buflen2 dd 16384
 
 	freq_table times 256 dd 0	
 	n dd 0
@@ -27,7 +27,7 @@ segment .bss
     tree resd 1
     num_nodes resd 1
 	buffer resb 2048
-	buffer2 resb 2048
+	buffer2 resb 16384
 	huffman_table resd 1
 	treebuffer resb 16
 	encoding resd 256
@@ -386,6 +386,7 @@ finish_buffer:
 
 mov ecx,0
 mov esi,buffer2
+mov edx,0
 print_buffer2:
 	lodsb
 		cmp al,0
@@ -395,49 +396,85 @@ print_buffer2:
 		jmp print_buffer2
 finish_print_buffer2:
 call print_nl
+
 mov eax,ecx
 call print_int
 call print_nl
 
- mov eax,8
- mov ebx, flname
- mov ecx,700
- int 80h
 
- mov [fldscp],eax
- mov eax,4
- mov ebx,[fldscp]
- mov ecx, buffer2
- mov edx, buflen2
- int 80h
+; 26/05 ----------
+mov [n],eax
+mov ecx,[n]
+mov ebx,7
+mov edx,0
+mov edi,0
+mov eax,0
+build_new_buffer:
+	push ecx
 
- mov eax,6
- mov ebx,[fldscp]
- int 80h
-leave
-ret
-   ;create the file
-   mov  eax, 8
-   mov  ebx, flname
-   mov  ecx, 0777        ;read, write and execute by all
-   int  0x80             ;call kernel
+	movzx ecx, byte [buffer2 + edx] ; read bit from buffer
+	sub ecx,'0'
 
-   mov [fldscp], eax
-    
-   ; write into the file
-   mov	edx, buflen2          ;number of bytes
-   mov	ecx, buffer2         ;message to write
-   mov	ebx, [fldscp]    ;file descriptor 
-   mov	eax,4            ;system call number (sys_write)
-   int	0x80             ;call kernel
-	
-   ; close the file
-   mov eax, 6
-   mov ebx, [fldscp]
-    
+	or eax,ecx ; put it on first bit
+
+	shl eax,1 ; shift it left once
+
+	pop ecx
+
+	cmp ebx,0
+	jne dont_reset
+
+	mov ebx,8
+	mov byte [buffer2 + edi + 2],0
+	shr eax,1 ; remove the extra space
+	mov [buffer2 + edi + 2],al
+	mov eax,0
+	inc edi
+
+	dont_reset:
+	dec ebx
+	inc edx
+loop build_new_buffer
+
+cmp eax,0
+je tamanho_certo
+
+mov ecx,ebx
+dec ecx
+shl eax,cl
+
+mov [buffer2 + edi  + 2],al ; bota os bits finais que faltaram 
+inc edi
+mov [n],edi
+add dword [n],1
+
+tamanho_certo:
+
+mov byte [buffer2 + edi + 2],0; bota um zero no novo final do buffer
+mov eax,[n]
+mov [buffer2 + 1], al ; primeiros dois bytes usados para representar tamanho
+shr eax,8
+mov [buffer2],al
 
 
+mov ebx,2
+mov ecx,0
+printa_bits:
+	;mov eax,0
+	movzx eax,byte [buffer2 + ebx]
+	cmp eax,0
+	je fim_printa_bits
 
+	call print_char
+	inc ebx
+	jmp printa_bits
+fim_printa_bits:
+call print_nl
+
+push flname
+push buffer2
+push dword [n]
+call write_file
 leave
 ret
 
