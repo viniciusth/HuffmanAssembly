@@ -20,7 +20,7 @@ segment .data
 	freq_table times 256 dd 0	
 	n dd 0
 	fldscp dd 0
-
+	extra dd 0
 
 segment .bss
 
@@ -464,17 +464,20 @@ printa_bits:
 	movzx eax,byte [buffer2 + ebx]
 	cmp eax,0
 	je fim_printa_bits
-
 	call print_char
 	inc ebx
 	jmp printa_bits
 fim_printa_bits:
 call print_nl
 
+
+
 push flname
 push buffer2
 push dword [n]
 call write_file
+add esp,12
+
 leave
 ret
 
