@@ -20,7 +20,7 @@ segment .data
 	freq_table times 256 dd 0	
 	n dd 0
 	fldscp dd 0
-	extra dd 0
+	N dd 0
 
 segment .bss
 
@@ -36,8 +36,31 @@ segment .text
 
         global  asm_main
 asm_main:
+;jmp compressao
 
+	push flname
+	push buffer2
+	push buflen2
+	call read_file
+	add esp,12
+	movzx edx,byte [buffer2]
+	shl edx,8
+	or dl,byte [buffer2 + 1]
+	mov eax,edx
+	call print_int
+	call print_nl
+	; edx = tamanho do texto
+	;[buffer2 + edx + 2] = inicio das letras utilizadas
+	movzx eax,byte [buffer2 + edx + 4]
+	;mov eax,edx
+	;add eax,4
+	call print_int
+	call print_nl
+leave
+ret
+; compressão teoricamente completa : 28/05/2019
 	;build frequency table
+	compressao:
 	push filename
 	push buffer
 	push buflen
@@ -88,7 +111,8 @@ next_step:
 	inc ebx
 	add edx,4
 loop print_table
-
+mov eax,[n]
+mov [N],eax
 
 ; reserva 16 * n bytes para a huffman table
     mov eax, 45     ; sys_brk
@@ -367,7 +391,7 @@ build_buffer:
 
 		imul eax,4
 
-		mov edx,[encoding + eax]
+		mov edx,[encoding + eax] ; posiçao da letra no encoding
 		
 		mov eax,0
 		put_on_buffer:
@@ -457,19 +481,93 @@ shr eax,8
 mov [buffer2],al
 
 
+
 mov ebx,2
-mov ecx,0
+mov ecx,[n]
 printa_bits:
 	;mov eax,0
 	movzx eax,byte [buffer2 + ebx]
-	cmp eax,0
-	je fim_printa_bits
 	call print_char
 	inc ebx
-	jmp printa_bits
-fim_printa_bits:
+loop printa_bits
 call print_nl
+; ebx = posicao do buffer final
+mov eax,[N]
+mov [buffer2 + ebx],eax ; primeiro byte apos o texto que demonstra a quant de letras do texto
+inc ebx
+inc dword [n]
+mov eax,-1 ;               com cada letra tendo 4 bytes cada.
 
+continue_buffer2:
+	inc eax
+	cmp eax,256
+	je finalprog
+	cmp dword [freq_table + eax*4],0 ; verifico se apareceu no texto
+	je continue_buffer2
+	; se tem frequencia, adiciono em 4 o tamanho do buffer2
+	add dword [n],4
+
+	mov edi,[encoding + eax*4]
+	push eax
+	mov edx,0
+	mov eax,0
+	put_on_buffer2:
+			cmp byte [edi + eax],0
+			je next_it
+			movzx ecx,byte [edi + eax]
+			sub ecx,'0'
+			or edx,ecx
+			shl edx,1
+			inc eax
+			jmp put_on_buffer2
+	next_it:
+	shr edx,1
+	; edx = codificaçao em bits,
+	; eax = quantidade de bits utilizados
+	; [buffer2 + ebx] = inicio de uma struct de 4 posiçoes
+	; struct = {char,quantidade de bits utilizados, 8 primeiros bits, 8 ultimos bits}
+
+	
+	mov edi,eax
+	
+	call print_int
+	call print_nl
+	pop eax
+	mov [buffer2 + ebx],eax
+	mov [buffer2 + ebx + 1], edi
+	mov [buffer2 + ebx + 3],dl
+	shr edx,8
+	mov [buffer2 + ebx + 2],dl
+
+	push eax
+;debug:
+	mov eax,ebx	
+	call print_int
+	mov al,' '
+	call print_char
+	movzx eax,byte [buffer2 + ebx]
+	call print_int
+	mov al,' '
+	call print_char
+	movzx eax, byte [buffer2 + ebx + 1]
+	call print_int
+	mov al,' '
+	call print_char
+	movzx eax,byte [buffer2 + ebx + 2]
+	call print_int
+	mov al,' '
+	call print_char
+	movzx eax,byte [buffer2 + ebx + 3]
+	call print_int
+	mov al,' '
+	call print_char
+	call print_nl
+
+	pop eax
+	add ebx,4
+	jmp continue_buffer2
+finalprog:
+mov byte [buffer2 + ebx],0
 
 
 push flname
@@ -478,72 +576,9 @@ push dword [n]
 call write_file
 add esp,12
 
+
 leave
 ret
-
-  ; exemplo de funcionamento da arvore
-    push tree
-    push num_nodes
-    call init
-    add esp, 8
-    
-    call debug
-    
-    push dword 15
-    push tree
-    push num_nodes
-	push 'a'
-    call insert
-    add esp, 16
-    
-    call debug
-    
-    push dword 10
-    push tree
-    push num_nodes
-	push 'b'
-    call insert
-    add esp, 16
-    
-    call debug
-    
-    push dword 20
-    push tree
-    push num_nodes
-	push 'c'
-    call insert
-    add esp, 16
-    
-    call debug
-    
-    push dword 5
-    push tree
-    push num_nodes
-	push 'd'
-    call insert
-    add esp, 16
-    
-    call debug
-    
-    
-    ;mov eax, [num_nodes]
-    ;call print_int
-
-   push tree
-   call process_huffman_tree
-   add esp, 4
-   call print_nl
-   
-   push tree
-   push dword 18
-   call search_value
-   add esp, 8
-   call print_int
-   call print_nl
-   
-
-    leave                     
-    ret
 
 
 
