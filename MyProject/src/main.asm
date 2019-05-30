@@ -14,6 +14,7 @@ segment .data
 	sep db "-------------",0
 	filename db "bigtest.txt", 0
 	flname db "compressed.txt", 0
+	flname2 db "decompression.txt",0
   	buflen dw 2048
 	buflen2 dd 16384
 
@@ -21,6 +22,10 @@ segment .data
 	n dd 0
 	fldscp dd 0
 	N dd 0
+
+	;var pra decomp
+	nm dd 0
+
 
 segment .bss
 
@@ -31,36 +36,193 @@ segment .bss
 	huffman_table resd 1
 	treebuffer resb 16
 	encoding resd 256
+	;variaveis para descompressao
+	buf resb 20
+	let resb 20
 
 segment .text  
 
         global  asm_main
 asm_main:
-;jmp compressao
+jmp compressao
 
 	push flname
 	push buffer2
 	push buflen2
 	call read_file
 	add esp,12
+	push eax
+	call close_file
 	movzx edx,byte [buffer2]
 	shl edx,8
 	or dl,byte [buffer2 + 1]
 	mov eax,edx
 	call print_int
 	call print_nl
-	; edx = tamanho do texto
+	mov [n],edx
+	; n = tamanho do texto
 	;[buffer2 + edx + 2] = inicio das letras utilizadas
-	movzx eax,byte [buffer2 + edx + 4]
-	;mov eax,edx
-	;add eax,4
+	movzx eax,byte [buffer2 + edx + 2]
+	mov [N],eax
+	; N = quantidade de letras diferentes 
 	call print_int
 	call print_nl
+
+
+	mov eax, 45     ; sys_brk
+    xor ebx, ebx
+    int 80h
+
+	mov ebx, 20
+	imul ebx,[N]
+
+    add eax, ebx ; reserve 20*N bytes, 1 para o char 20 para codificacao
+    mov ebx, eax
+    mov eax, 45     ; sys_brk
+    int 80h
+	
+	mov ebx,20
+	imul ebx,[N]
+	sub ebx,4
+	sub eax,ebx	
+
+	mov [huffman_table],eax ; eax aponta para o inicio do vetor criado
+
+	mov ecx,[N]
+	mov ebx,3
+	mov eax,0
+	mov ebp,[n]
+	mov edi,0 ; pointeiro para construir vetor
+	mov esi,[huffman_table]
+
+build_encoding_table:
+
+	mov al,byte [buffer2 + ebp + ebx]
+	mov byte [esi + edi], al
+	;call print_char
+	
+	pushad
+		movzx ecx, byte [buffer2 + ebp + ebx + 1]
+		
+		or dl,byte [buffer2 + ebp + ebx + 2]
+		
+		shl edx,8
+		
+		or dl,byte [buffer2 + ebp + ebx + 3]
+
+		; edx = codificacao
+		mov eax,1
+		shl eax,cl
+		shr eax,1
+		mov ebx,1
+		get_code:
+
+			push eax
+			and eax,edx
+			cmp eax,0
+			je continue_code
+			xor eax,eax
+			mov eax,1
+			continue_code:
+			add eax,48
+			add edi,ebx
+			mov byte [esi + edi],al
+			sub edi,ebx
+			pop eax
+			shr eax,1
+			inc ebx
+		loop get_code
+
+	popad
+	add edi,20
+	add ebx,4
+	
+loop build_encoding_table
+
+mov ecx,[N]
+mov edi,0
+mov esi,[huffman_table]
+
+print_encoding_table:
+	movzx eax, byte [esi + edi]
+	call print_char
+	mov al,' '
+	call print_char
+	mov ebx,1
+	print_encoding_table_char:
+		xor eax,eax
+		add edi,ebx
+		mov al,byte [esi + edi]
+		sub edi,ebx
+		cmp al,0
+		je fim_print_encoding_table_char
+		call print_char 
+		inc ebx
+	jmp print_encoding_table_char
+	fim_print_encoding_table_char:
+	call print_nl
+	add edi,20
+loop print_encoding_table
+
+mov eax,666
+call print_int
+call print_nl
+
+mov eax,0
+mov ebx,1
+mov ecx,[n]
+imul ecx,8
+mov edx,0
+mov edi,0
+mov ebp,0
+print_binary_rep:
+	cmp ebp,0
+	jne prox_bit1
+	
+	mov ebp,8
+	inc ebx
+	mov eax,ebx
+	;call print_int
+	;call print_nl
+	prox_bit1:
+	movzx eax,byte [buffer2 + ebx]
+	push ebp
+	push ecx
+		mov ecx,ebp
+		dec ecx
+		mov ebp,1
+		shl ebp,cl
+		and eax,ebp
+		cmp eax,0
+		je letrazero1
+		mov eax,1
+		letrazero1:
+		add eax,48
+		call print_char
+	pop ecx
+	pop ebp
+	dec ebp
+loop print_binary_rep	
+mov eax,667
+call print_int
+call print_nl
+;aehoo printa o buffer
+    mov esi, buffer
+    cld 
+    print:
+        lodsb ;al = [esi] e esi+=1
+        cmp al, 0
+        je exit
+        call print_char
+    jmp print
+    exit:
+    call print_nl 
 leave
 ret
+
 ; compressão teoricamente completa : 28/05/2019
 	;build frequency table
-	compressao:
+compressao:
 	push filename
 	push buffer
 	push buflen
