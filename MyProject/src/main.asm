@@ -23,8 +23,7 @@ segment .data
 	fldscp dd 0
 	N dd 0
 
-	;var pra decomp
-	nm dd 0
+	
 
 
 segment .bss
@@ -44,7 +43,9 @@ segment .text
 
         global  asm_main
 asm_main:
-jmp compressao
+call read_char
+cmp al,'c'
+je compressao
 
 	push flname
 	push buffer2
@@ -99,9 +100,10 @@ build_encoding_table:
 
 	mov al,byte [buffer2 + ebp + ebx]
 	mov byte [esi + edi], al
-	;call print_char
-	
+	call print_char
+	call print_nl
 	pushad
+		xor edx,edx
 		movzx ecx, byte [buffer2 + ebp + ebx + 1]
 		
 		or dl,byte [buffer2 + ebp + ebx + 2]
@@ -111,6 +113,9 @@ build_encoding_table:
 		or dl,byte [buffer2 + ebp + ebx + 3]
 
 		; edx = codificacao
+		mov eax,edx
+		call print_int
+		call print_nl
 		mov eax,1
 		shl eax,cl
 		shr eax,1
@@ -164,13 +169,14 @@ print_encoding_table:
 	add edi,20
 loop print_encoding_table
 
-mov eax,666
+movzx eax,byte [buffer2 + 84]
 call print_int
 call print_nl
 
 mov eax,0
 mov ebx,1
 mov ecx,[n]
+dec ecx
 imul ecx,8
 mov edx,0
 mov edi,0
@@ -203,20 +209,144 @@ print_binary_rep:
 	pop ebp
 	dec ebp
 loop print_binary_rep	
-mov eax,667
-call print_int
-call print_nl
+mov eax,0
+mov ebx,1
+mov ecx,[n]
+dec ecx
+imul ecx,8
+mov edx,0
+mov edi,0
+mov ebp,0
+build_buffer_decomp:
+	cmp ebp,0
+	jne prox_bit
+	prox_letra:
+	mov ebp,8
+	inc ebx
+	mov eax,ebx
+	;call print_int
+	;call print_nl
+	prox_bit:
+	movzx eax,byte [buffer2 + ebx]
+	
+	push ebp
+	push ecx
+
+		mov ecx,ebp
+		dec ecx
+		mov ebp,1
+		shl ebp,cl
+		and eax,ebp
+		cmp eax,0
+		je letrazero
+		mov eax,1
+		letrazero:
+		add eax,48
+		call print_char
+		
+
+	pop ecx
+	pop ebp
+	
+	mov  [buf + edx],eax
+	
+	
+	;go through all characters:
+	pushad
+		mov ecx,[N]
+		mov edi,0
+		mov esi,[huffman_table]
+
+		go_through:			
+			mov ebx,1
+
+			push ecx
+			mov ecx,20
+			clear_let2:
+				mov byte [let + ecx - 1],0
+			loop clear_let2
+
+			pop ecx
+			go_through_char:
+				xor eax,eax
+				add edi,ebx
+				movzx edx,byte [esi + edi]
+				sub edi,ebx
+				mov byte [let + ebx - 1],dl
+				
+				cmp byte [let + ebx - 1],0
+				je fim_go_through_char
+				inc ebx
+			jmp go_through_char
+			fim_go_through_char:
+			push let
+			push buf
+			call cmp_strings
+			add esp,8
+			push ecx
+			mov ecx,20
+			clear_let:
+				mov byte [let + ecx - 1],0
+			loop clear_let
+
+			pop ecx
+			;call print_nl
+			cmp eax,1 ; resultado vem em eax 1 = true, 0 = false
+			je fim_go_through_true
+			add edi,20
+		loop go_through
+		jmp fim_go_through_false
+		fim_go_through_true:
+			mov al,byte [esi + edi]
+			call print_char
+			call print_nl
+			call print_nl
+			mov byte [let],al
+			mov ecx,20
+			clear_buf:
+				mov byte [buf + ecx - 1],0
+			loop clear_buf
+			
+			jmp nkk
+		fim_go_through_false:
+	popad
+	jmp kk
+	nkk:
+	popad
+	movzx eax,byte [let]
+	mov byte [buffer + edi],al
+	mov eax,edi
+	;call print_int
+	;call print_nl
+	mov edx,-1
+	inc edi
+	kk:
+	inc edx
+	dec ecx
+	dec ebp
+	cmp ecx,0
+	jne build_buffer_decomp
+
 ;aehoo printa o buffer
     mov esi, buffer
+    mov ebx,0
     cld 
     print:
         lodsb ;al = [esi] e esi+=1
         cmp al, 0
         je exit
+        inc ebx
         call print_char
     jmp print
     exit:
     call print_nl 
+
+    push flname2
+    push buffer
+    push ebx
+    call write_file
+    add esp,12
+
 leave
 ret
 
@@ -624,12 +754,19 @@ loop build_new_buffer
 
 cmp eax,0
 je tamanho_certo
+push eax
+	mov eax,ebx
+	call print_int
+	call print_nl
+pop eax
+call print_int
+call print_nl
 
 mov ecx,ebx
-dec ecx
 shl eax,cl
-
-mov [buffer2 + edi  + 2],al ; bota os bits finais que faltaram 
+call print_int
+call print_nl
+mov [buffer2 + edi + 2],al ; bota os bits finais que faltaram 
 inc edi
 mov [n],edi
 add dword [n],1
@@ -708,7 +845,7 @@ continue_buffer2:
 	mov al,' '
 	call print_char
 	movzx eax,byte [buffer2 + ebx]
-	call print_int
+	call print_char
 	mov al,' '
 	call print_char
 	movzx eax, byte [buffer2 + ebx + 1]
@@ -729,12 +866,13 @@ continue_buffer2:
 	add ebx,4
 	jmp continue_buffer2
 finalprog:
-mov byte [buffer2 + ebx],0
 
-
+mov eax,ebx
+call print_int
+call print_nl
 push flname
 push buffer2
-push dword [n]
+push ebx
 call write_file
 add esp,12
 
